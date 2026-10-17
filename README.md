@@ -27,8 +27,10 @@ cp .env.example .env     # no Windows: copy .env.example .env
 docker compose up --build
 ```
 
-Pronto: painel em **http://localhost:3000** e webhook em
-**http://localhost:3000/api/webhooks/instagram**.
+Pronto:
+- **Site (landing):** http://localhost:3000
+- **Painel interno:** http://localhost:3000/app
+- **Webhook:** http://localhost:3000/api/webhooks/instagram
 
 Para expor o webhook pra Meta (que precisa de HTTPS público), use um túnel:
 
@@ -80,8 +82,8 @@ na mão.** Dá pra conectar mais de uma conta e desconectar quando quiser.
 
 ## 🧪 Criar um fluxo
 
-No painel (`http://localhost:3000`) use **“+ Novo fluxo”** para criar, editar,
-ativar/desativar e excluir fluxos — sem linha de comando.
+No painel (`http://localhost:3000/app`) use **“+ Novo fluxo”** para criar,
+editar, ativar/desativar e excluir fluxos — sem linha de comando.
 
 Se preferir, a API continua disponível:
 
@@ -126,15 +128,26 @@ npm run dev
 ```
 src/
   app/
+    page.tsx                        # landing page (/)
+    layout.tsx                      # layout raiz
+    globals.css
+    app/
+      layout.tsx                    # shell do painel (sidebar + topo)
+      page.tsx                      # painel interno (/app)
     api/
       webhooks/instagram/route.ts   # verificação (GET) + ingestão (POST)
-      flows/route.ts                # CRUD de fluxos (GET/POST)
-    page.tsx                        # dashboard
-    layout.tsx
-    globals.css
+      flows/route.ts                # listar/criar fluxos
+      flows/[id]/route.ts           # editar/excluir fluxo
+      accounts/[id]/route.ts        # desconectar conta
+      auth/meta/login/route.ts      # inicia o OAuth
+      auth/meta/callback/route.ts   # recebe o code e salva o token
+  components/
+    FlowsManager.tsx   # editor de fluxos (client)
+    ConnectionPanel.tsx# conexão de contas (client)
   lib/
     db.ts              # Prisma client
     env.ts             # variáveis de ambiente
+    credentials.ts     # token da conta conectada (fallback .env)
     signature.ts       # verificação X-Hub-Signature-256
     meta.ts            # chamadas à Graph API (reply + DM)
     processComment.ts  # match + ações + dedup
@@ -147,6 +160,7 @@ docker-compose.yml
 
 ## 🗺️ Roadmap
 
+- [x] Landing page (`/`) e painel interno (`/app`) com layout próprio
 - [x] Editor de fluxos no painel (criar/editar/ativar/excluir)
 - [x] OAuth da Meta no painel (conectar conta sem colar token)
 - [ ] Quick replies encadeados / nós visuais no editor
