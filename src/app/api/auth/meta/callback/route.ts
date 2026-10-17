@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db";
+import { encryptSecret } from "@/lib/crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,13 +91,14 @@ export async function GET(req: NextRequest) {
     for (const page of pages) {
       const ig = page.instagram_business_account;
       if (!ig?.id || !page.access_token) continue;
+      const token = encryptSecret(page.access_token);
       await prisma.account.upsert({
         where: { igUserId: ig.id },
-        update: { username: ig.username ?? null, accessToken: page.access_token },
+        update: { username: ig.username ?? null, accessToken: token },
         create: {
           igUserId: ig.id,
           username: ig.username ?? null,
-          accessToken: page.access_token,
+          accessToken: token,
         },
       });
       connected++;

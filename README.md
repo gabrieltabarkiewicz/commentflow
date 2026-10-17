@@ -49,6 +49,7 @@ cloudflared tunnel --url http://localhost:3000
 | `IG_VERIFY_TOKEN`   | String aleatória que você escolhe; a mesma vai no webhook da Meta.          |
 | `IG_ACCESS_TOKEN`   | **Opcional** (fallback). Depois do OAuth não é necessário.                  |
 | `IG_USER_ID`        | **Opcional** (fallback). Depois do OAuth não é necessário.                  |
+| `ENCRYPTION_KEY`    | Criptografa os tokens no banco (AES-256-GCM). Gere com `openssl rand -base64 32`. |
 | `GRAPH_API_VERSION` | Versão da Graph API (padrão `v21.0`).                                       |
 | `DATABASE_URL`      | No Docker é definido automaticamente; só importa pra rodar sem Docker.      |
 
@@ -170,8 +171,8 @@ docker-compose.yml
 - [x] Editor de fluxos no painel (criar/editar/ativar/excluir)
 - [x] OAuth da Meta no painel (conectar conta sem colar token)
 - [x] Quick replies encadeados (fluxo multi-passo no editor)
+- [x] Criptografar tokens de acesso no banco (AES-256-GCM)
 - [ ] Editor de fluxo em canvas visual (arrastar nós)
-- [ ] Criptografar tokens de acesso no banco
 - [ ] Fila (BullMQ/Redis) com rate-limit e retry
 - [ ] Multiconta e multiusuário
 - [ ] Broadcast e segmentação por tags

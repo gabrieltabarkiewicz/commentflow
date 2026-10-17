@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
+import { decryptSecret } from "@/lib/crypto";
 import type { IgCredentials } from "@/lib/meta";
 
 /**
@@ -13,8 +14,9 @@ export async function getActiveCredentials(): Promise<IgCredentials> {
       where: { accessToken: { not: null } },
       orderBy: { createdAt: "desc" },
     });
-    if (account?.accessToken && account.igUserId) {
-      return { accessToken: account.accessToken, igUserId: account.igUserId };
+    const token = decryptSecret(account?.accessToken);
+    if (token && account?.igUserId) {
+      return { accessToken: token, igUserId: account.igUserId };
     }
   } catch {
     // DB unavailable — fall back to env.

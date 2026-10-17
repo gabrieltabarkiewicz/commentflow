@@ -24,4 +24,7 @@ export const env = {
   get graphVersion() {
     return process.env.GRAPH_API_VERSION ?? "v21.0";
   },
+  get encryptionKey() {
+    return process.env.ENCRYPTION_KEY ?? "";
+  },
 };
