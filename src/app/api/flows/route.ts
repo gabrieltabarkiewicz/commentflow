@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { flowInputSchema } from "@/lib/validation";
 
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest) {
       keywords: data.keywords ?? [],
       publicReplies: data.publicReplies ?? [],
       dmMessage: data.dmMessage ?? null,
+      dmFlow: data.dmFlow
+        ? (data.dmFlow as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
     },
   });
   return Response.json(flow, { status: 201 });

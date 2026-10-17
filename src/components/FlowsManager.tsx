@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { DmFlow } from "@/lib/flowTypes";
 
 type Scope = "ALL_POSTS" | "SPECIFIC_POST";
 type MatchType = "ANY" | "KEYWORD";
+type DmMode = "simple" | "flow";
 
 export interface FlowDTO {
   id: string;
@@ -16,6 +18,17 @@ export interface FlowDTO {
   keywords: string[];
   publicReplies: string[];
   dmMessage: string | null;
+  dmFlow: DmFlow | null;
+}
+
+interface QRDraft {
+  title: string;
+  next: string; // step id or "" (end)
+}
+interface StepDraft {
+  id: string;
+  text: string;
+  quickReplies: QRDraft[];
 }
 
 interface Draft {
@@ -25,9 +38,11 @@ interface Draft {
   scope: Scope;
   mediaId: string;
   matchType: MatchType;
-  keywords: string; // textarea, one per line
-  publicReplies: string; // textarea, one per line
+  keywords: string;
+  publicReplies: string;
+  dmMode: DmMode;
   dmMessage: string;
+  steps: StepDraft[];
 }
 
 function emptyDraft(): Draft {
@@ -40,11 +55,28 @@ function emptyDraft(): Draft {
     matchType: "ANY",
     keywords: "",
     publicReplies: "",
+    dmMode: "simple",
     dmMessage: "",
+    steps: [],
   };
 }
 
+function stepsFromDmFlow(df: DmFlow): StepDraft[] {
+  const ids = [df.entry, ...Object.keys(df.steps).filter((k) => k !== df.entry)];
+  return ids
+    .filter((id) => df.steps[id])
+    .map((id) => ({
+      id,
+      text: df.steps[id].text ?? "",
+      quickReplies: (df.steps[id].quickReplies ?? []).map((q) => ({
+        title: q.title,
+        next: q.next ?? "",
+      })),
+    }));
+}
+
 function toDraft(f: FlowDTO): Draft {
+  const hasFlow = Boolean(f.dmFlow);
   return {
     id: f.id,
     name: f.name,
@@ -54,7 +86,9 @@ function toDraft(f: FlowDTO): Draft {
     matchType: f.matchType,
     keywords: f.keywords.join("\n"),
     publicReplies: f.publicReplies.join("\n"),
+    dmMode: hasFlow ? "flow" : "simple",
     dmMessage: f.dmMessage ?? "",
+    steps: hasFlow && f.dmFlow ? stepsFromDmFlow(f.dmFlow) : [],
   };
 }
 
@@ -63,6 +97,13 @@ function lines(s: string): string[] {
     .split("\n")
     .map((x) => x.trim())
     .filter(Boolean);
+}
+
+function newStepId(steps: StepDraft[]): string {
+  const ids = new Set(steps.map((s) => s.id));
+  let n = 1;
+  while (ids.has(`s${n}`)) n++;
+  return `s${n}`;
 }
 
 export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
@@ -85,14 +126,96 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
     setError(null);
   }
 
+  // --- step editor helpers ---
+  function addStep() {
+    setDraft((d) =>
+      d ? { ...d, steps: [...d.steps, { id: newStepId(d.steps), text: "", quickReplies: [] }] } : d,
+    );
+  }
+  function removeStep(i: number) {
+    setDraft((d) => (d ? { ...d, steps: d.steps.filter((_, idx) => idx !== i) } : d));
+  }
+  function setStepText(i: number, text: string) {
+    setDraft((d) =>
+      d ? { ...d, steps: d.steps.map((s, idx) => (idx === i ? { ...s, text } : s)) } : d,
+    );
+  }
+  function addQR(i: number) {
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            steps: d.steps.map((s, idx) =>
+              idx === i ? { ...s, quickReplies: [...s.quickReplies, { title: "", next: "" }] } : s,
+            ),
+          }
+        : d,
+    );
+  }
+  function setQR(i: number, j: number, patch: Partial<QRDraft>) {
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            steps: d.steps.map((s, idx) =>
+              idx === i
+                ? {
+                    ...s,
+                    quickReplies: s.quickReplies.map((q, jdx) =>
+                      jdx === j ? { ...q, ...patch } : q,
+                    ),
+                  }
+                : s,
+            ),
+          }
+        : d,
+    );
+  }
+  function removeQR(i: number, j: number) {
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            steps: d.steps.map((s, idx) =>
+              idx === i
+                ? { ...s, quickReplies: s.quickReplies.filter((_, jdx) => jdx !== j) }
+                : s,
+            ),
+          }
+        : d,
+    );
+  }
+
   async function save() {
     if (!draft) return;
     if (!draft.name.trim()) {
       setError("Dê um nome ao fluxo.");
       return;
     }
+    if (draft.dmMode === "flow" && draft.steps.length === 0) {
+      setError("Adicione ao menos um passo ao fluxo.");
+      return;
+    }
     setSaving(true);
     setError(null);
+
+    const dmFlow =
+      draft.dmMode === "flow" && draft.steps.length > 0
+        ? {
+            entry: draft.steps[0].id,
+            steps: Object.fromEntries(
+              draft.steps.map((s) => [
+                s.id,
+                {
+                  text: s.text,
+                  quickReplies: s.quickReplies
+                    .filter((q) => q.title.trim())
+                    .map((q) => ({ title: q.title.trim(), next: q.next || null })),
+                },
+              ]),
+            ),
+          }
+        : null;
 
     const payload = {
       name: draft.name.trim(),
@@ -103,7 +226,8 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
       matchType: draft.matchType,
       keywords: draft.matchType === "KEYWORD" ? lines(draft.keywords) : [],
       publicReplies: lines(draft.publicReplies),
-      dmMessage: draft.dmMessage.trim() || null,
+      dmMessage: draft.dmMode === "simple" ? draft.dmMessage.trim() || null : null,
+      dmFlow,
     };
 
     try {
@@ -153,6 +277,12 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
       setFlows((prev) => prev.filter((x) => x.id !== f.id));
       router.refresh();
     }
+  }
+
+  function dmSummary(f: FlowDTO): string {
+    if (f.dmFlow) return ` · fluxo de ${Object.keys(f.dmFlow.steps).length} passos`;
+    if (f.dmMessage) return " · com DM";
+    return "";
   }
 
   return (
@@ -227,9 +357,7 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
               <textarea
                 rows={3}
                 value={draft.keywords}
-                onChange={(e) =>
-                  setDraft({ ...draft, keywords: e.target.value })
-                }
+                onChange={(e) => setDraft({ ...draft, keywords: e.target.value })}
                 placeholder={"quero\neu quero\nlink"}
               />
             </div>
@@ -251,29 +379,103 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
           </div>
 
           <div className="field">
-            <label>
-              Mensagem de DM{" "}
-              <span className="hint">
-                (comentário → direct; vazio = não envia)
-              </span>
-            </label>
-            <textarea
-              rows={3}
-              value={draft.dmMessage}
+            <label>Mensagem no Direct</label>
+            <select
+              value={draft.dmMode}
               onChange={(e) =>
-                setDraft({ ...draft, dmMessage: e.target.value })
+                setDraft({ ...draft, dmMode: e.target.value as DmMode })
               }
-              placeholder="Oi! Aqui está o link que você pediu: https://..."
-            />
+            >
+              <option value="simple">DM simples (uma mensagem)</option>
+              <option value="flow">Fluxo com botões (quick replies)</option>
+            </select>
           </div>
+
+          {draft.dmMode === "simple" && (
+            <div className="field">
+              <label>
+                Texto da DM{" "}
+                <span className="hint">(vazio = não envia DM)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={draft.dmMessage}
+                onChange={(e) =>
+                  setDraft({ ...draft, dmMessage: e.target.value })
+                }
+                placeholder="Oi! Aqui está o link que você pediu: https://..."
+              />
+            </div>
+          )}
+
+          {draft.dmMode === "flow" && (
+            <div className="field">
+              <label>
+                Passos do fluxo{" "}
+                <span className="hint">(o 1º passo é a DM inicial)</span>
+              </label>
+              {draft.steps.map((s, i) => (
+                <div className="step-card" key={s.id}>
+                  <div className="step-head">
+                    <span className="pill on">
+                      {i === 0 ? "Início" : `Passo ${i + 1}`}
+                    </span>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => removeStep(i)}
+                    >
+                      Remover passo
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={s.text}
+                    onChange={(e) => setStepText(i, e.target.value)}
+                    placeholder="Mensagem deste passo"
+                  />
+                  {s.quickReplies.map((q, j) => (
+                    <div className="qr-row" key={j}>
+                      <input
+                        value={q.title}
+                        onChange={(e) => setQR(i, j, { title: e.target.value })}
+                        placeholder="Texto do botão (máx 20)"
+                        maxLength={20}
+                      />
+                      <select
+                        value={q.next}
+                        onChange={(e) => setQR(i, j, { next: e.target.value })}
+                      >
+                        <option value="">↳ Encerrar</option>
+                        {draft.steps.map((t, idx) => (
+                          <option value={t.id} key={t.id}>
+                            ↳ {idx === 0 ? "Início" : `Passo ${idx + 1}`}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => removeQR(i, j)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button className="btn btn-sm" onClick={() => addQR(i)}>
+                    + botão
+                  </button>
+                </div>
+              ))}
+              <button className="btn btn-sm" onClick={addStep}>
+                + Adicionar passo
+              </button>
+            </div>
+          )}
 
           <label className="checkbox">
             <input
               type="checkbox"
               checked={draft.enabled}
-              onChange={(e) =>
-                setDraft({ ...draft, enabled: e.target.checked })
-              }
+              onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
             />
             Ativo
           </label>
@@ -315,7 +517,7 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
             {f.matchType === "ANY"
               ? "qualquer comentário"
               : `palavras: ${f.keywords.join(", ") || "—"}`}
-            {f.dmMessage ? " · com DM" : ""}
+            {dmSummary(f)}
           </p>
           <div className="card-actions">
             <button className="btn btn-sm" onClick={() => toggle(f)}>
@@ -324,10 +526,7 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
             <button className="btn btn-sm" onClick={() => openEdit(f)}>
               Editar
             </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => remove(f)}
-            >
+            <button className="btn btn-sm btn-danger" onClick={() => remove(f)}>
               Excluir
             </button>
           </div>

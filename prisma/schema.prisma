@@ -37,7 +37,8 @@ model Flow {
   matchType     MatchType     @default(ANY)
   keywords      String[]      @default([]) // used when matchType = KEYWORD
   publicReplies String[]      @default([]) // one is picked at random to avoid looking robotic
-  dmMessage     String? // comment -> DM (private reply); null = no DM
+  dmMessage     String? // comment -> DM simples (private reply); null = sem DM simples
+  dmFlow        Json? // fluxo multi-passo com quick replies: { entry, steps: { id: { text, quickReplies } } }
   account       Account?      @relation(fields: [accountId], references: [id])
   accountId     String?
   createdAt     DateTime      @default(now())

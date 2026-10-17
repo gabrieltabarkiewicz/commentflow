@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { flowInputSchema } from "@/lib/validation";
 
@@ -33,8 +34,17 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ...(d.mediaId !== undefined ? { mediaId: d.mediaId ?? null } : {}),
         ...(d.matchType !== undefined ? { matchType: d.matchType } : {}),
         ...(d.keywords !== undefined ? { keywords: d.keywords } : {}),
-        ...(d.publicReplies !== undefined ? { publicReplies: d.publicReplies } : {}),
+        ...(d.publicReplies !== undefined
+          ? { publicReplies: d.publicReplies }
+          : {}),
         ...(d.dmMessage !== undefined ? { dmMessage: d.dmMessage ?? null } : {}),
+        ...(d.dmFlow !== undefined
+          ? {
+              dmFlow: d.dmFlow
+                ? (d.dmFlow as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+            }
+          : {}),
       },
     });
     return Response.json(flow);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { replyToComment, sendPrivateReply } from "@/lib/meta";
 import { getActiveCredentials } from "@/lib/credentials";
+import { asDmFlow, buildStepMessage } from "@/lib/flowTypes";
 
 export interface IncomingComment {
   commentId: string;
@@ -101,7 +102,28 @@ export async function processComment(c: IncomingComment) {
     actions.push(r.ok ? "public_reply" : "public_reply_error");
   }
 
-  if (matched.dmMessage) {
+  // DM: prefer a multi-step flow (quick replies); otherwise the simple message.
+  const dmFlow = asDmFlow(matched.dmFlow);
+  if (dmFlow) {
+    const entry = buildStepMessage(matched.id, dmFlow, dmFlow.entry);
+    if (entry) {
+      const r = await sendPrivateReply(
+        creds,
+        c.commentId,
+        entry.text,
+        entry.quickReplies,
+      );
+      await prisma.activityLog.create({
+        data: {
+          type: r.ok ? "dm_flow" : "dm_flow_error",
+          commentId: c.commentId,
+          flowId: matched.id,
+          detail: r as unknown as object,
+        },
+      });
+      actions.push(r.ok ? "dm_flow" : "dm_flow_error");
+    }
+  } else if (matched.dmMessage) {
     const r = await sendPrivateReply(creds, c.commentId, matched.dmMessage);
     await prisma.activityLog.create({
       data: {

@@ -68,7 +68,8 @@ cloudflared tunnel --url http://localhost:3000
 6. No painel do app, configure o webhook do Instagram:
    - **Callback URL:** `https://SEU-TUNEL/api/webhooks/instagram`
    - **Verify token:** o mesmo valor de `IG_VERIFY_TOKEN`
-   - Assine o campo **`comments`**.
+   - Assine os campos **`comments`** e **`messages`** (o `messages` é
+     necessário para os botões/quick replies do fluxo multi-passo).
 
 ## 🔑 Conectar sua conta (OAuth)
 
@@ -84,6 +85,11 @@ na mão.** Dá pra conectar mais de uma conta e desconectar quando quiser.
 
 No painel (`http://localhost:3000/app`) use **“+ Novo fluxo”** para criar,
 editar, ativar/desativar e excluir fluxos — sem linha de comando.
+
+A DM pode ser **simples** (uma mensagem) ou um **fluxo com botões**: adicione
+passos, cada um com seu texto e botões (quick replies); cada botão aponta para o
+próximo passo ou encerra. O 1º passo é a DM inicial; quando a pessoa toca num
+botão, o CommentFlow envia o passo seguinte.
 
 Se preferir, a API continua disponível:
 
@@ -163,7 +169,8 @@ docker-compose.yml
 - [x] Landing page (`/`) e painel interno (`/app`) com layout próprio
 - [x] Editor de fluxos no painel (criar/editar/ativar/excluir)
 - [x] OAuth da Meta no painel (conectar conta sem colar token)
-- [ ] Quick replies encadeados / nós visuais no editor
+- [x] Quick replies encadeados (fluxo multi-passo no editor)
+- [ ] Editor de fluxo em canvas visual (arrastar nós)
 - [ ] Criptografar tokens de acesso no banco
 - [ ] Fila (BullMQ/Redis) com rate-limit e retry
 - [ ] Multiconta e multiusuário

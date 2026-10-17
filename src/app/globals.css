@@ -699,3 +699,36 @@ textarea:focus {
     margin: 0;
   }
 }
+
+/* ---- step (quick-reply) editor ---- */
+.step-card {
+  background: #0f131c;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.qr-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qr-row input {
+  flex: 1;
+}
+
+.qr-row select {
+  width: auto;
+  min-width: 120px;
+}

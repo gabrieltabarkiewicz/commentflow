@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { verifySignature } from "@/lib/signature";
 import { processComment } from "@/lib/processComment";
+import { processMessaging } from "@/lib/processMessaging";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,8 +23,38 @@ export async function GET(req: NextRequest) {
   return new Response("Forbidden", { status: 403 });
 }
 
+interface CommentChange {
+  field?: string;
+  value?: {
+    id?: string;
+    text?: string;
+    media?: { id?: string };
+    from?: { id?: string; username?: string };
+  };
+}
+
+interface MessagingEvent {
+  sender?: { id?: string };
+  message?: {
+    mid?: string;
+    text?: string;
+    is_echo?: boolean;
+    quick_reply?: { payload?: string };
+  };
+  postback?: { payload?: string };
+}
+
+interface WebhookPayload {
+  entry?: Array<{
+    changes?: CommentChange[];
+    messaging?: MessagingEvent[];
+  }>;
+}
+
 /**
- * Event ingestion. Verifies the signature, then handles "comments" changes.
+ * Event ingestion. Verifies the signature, then handles:
+ * - "comments" changes (someone commented)
+ * - messaging events (someone tapped a quick reply / postback)
  */
 export async function POST(req: NextRequest) {
   const raw = await req.text();
@@ -33,20 +64,7 @@ export async function POST(req: NextRequest) {
     return new Response("Invalid signature", { status: 401 });
   }
 
-  let payload: {
-    entry?: Array<{
-      changes?: Array<{
-        field?: string;
-        value?: {
-          id?: string;
-          text?: string;
-          media?: { id?: string };
-          from?: { id?: string; username?: string };
-        };
-      }>;
-    }>;
-  };
-
+  let payload: WebhookPayload;
   try {
     payload = JSON.parse(raw);
   } catch {
@@ -56,13 +74,12 @@ export async function POST(req: NextRequest) {
   const tasks: Promise<unknown>[] = [];
 
   for (const entry of payload.entry ?? []) {
+    // Comments
     for (const change of entry.changes ?? []) {
       if (change.field !== "comments") continue;
       const v = change.value ?? {};
       if (!v.id) continue;
-      // Never react to our own comments (prevents reply loops).
-      if (v.from?.id && v.from.id === env.igUserId) continue;
-
+      if (v.from?.id && v.from.id === env.igUserId) continue; // skip our own
       tasks.push(
         processComment({
           commentId: v.id,
@@ -72,6 +89,20 @@ export async function POST(req: NextRequest) {
           text: v.text,
           raw: change,
         }).catch((e) => console.error("processComment error", e)),
+      );
+    }
+
+    // Messaging (quick replies / postbacks)
+    for (const event of entry.messaging ?? []) {
+      if (event.message?.is_echo) continue; // ignore our own outbound echoes
+      const qrPayload =
+        event.message?.quick_reply?.payload ?? event.postback?.payload;
+      if (!qrPayload) continue;
+      tasks.push(
+        processMessaging({
+          senderId: event.sender?.id,
+          payload: qrPayload,
+        }).catch((e) => console.error("processMessaging error", e)),
       );
     }
   }

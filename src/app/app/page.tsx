@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { FlowsManager, type FlowDTO } from "@/components/FlowsManager";
 import { ConnectionPanel, type AccountDTO } from "@/components/ConnectionPanel";
+import { asDmFlow } from "@/lib/flowTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ async function getData() {
       keywords: f.keywords,
       publicReplies: f.publicReplies,
       dmMessage: f.dmMessage,
+      dmFlow: asDmFlow(f.dmFlow),
     }));
     const accounts: AccountDTO[] = accountsRaw.map((a) => ({
       id: a.id,
