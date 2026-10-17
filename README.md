@@ -39,27 +39,44 @@ cloudflared tunnel --url http://localhost:3000
 
 ## 🧩 O que preencher no `.env`
 
-| Variável          | O que é                                                                 |
-| ----------------- | ----------------------------------------------------------------------- |
-| `META_APP_SECRET` | App secret do app na Meta (valida a assinatura `X-Hub-Signature-256`).  |
-| `IG_VERIFY_TOKEN` | String aleatória que você escolhe; a mesma vai no webhook da Meta.      |
-| `IG_ACCESS_TOKEN` | Token com `instagram_manage_comments` + `instagram_manage_messages`.    |
-| `IG_USER_ID`      | Id da sua conta IG Business (remetente da DM no comentário→DM).          |
-| `GRAPH_API_VERSION` | Versão da Graph API (padrão `v21.0`).                                 |
-| `DATABASE_URL`    | No Docker é definido automaticamente; só importa pra rodar sem Docker.  |
+| Variável            | O que é                                                                     |
+| ------------------- | --------------------------------------------------------------------------- |
+| `META_APP_ID`       | App ID do app na Meta (usado no OAuth do painel).                           |
+| `META_APP_SECRET`   | App secret (valida `X-Hub-Signature-256` e troca o code do OAuth).          |
+| `META_REDIRECT_URI` | Opcional. URL de callback do OAuth; vazio = `<origin>/api/auth/meta/callback`. |
+| `IG_VERIFY_TOKEN`   | String aleatória que você escolhe; a mesma vai no webhook da Meta.          |
+| `IG_ACCESS_TOKEN`   | **Opcional** (fallback). Depois do OAuth não é necessário.                  |
+| `IG_USER_ID`        | **Opcional** (fallback). Depois do OAuth não é necessário.                  |
+| `GRAPH_API_VERSION` | Versão da Graph API (padrão `v21.0`).                                       |
+| `DATABASE_URL`      | No Docker é definido automaticamente; só importa pra rodar sem Docker.      |
 
 ## ⚙️ Pré-requisitos na Meta (API oficial)
 
 1. Conta **Instagram Business/Creator** ligada a uma **Página do Facebook**.
 2. App no **[Meta for Developers](https://developers.facebook.com/)** com o
    produto *Instagram* + webhooks.
-3. Permissões: `instagram_basic`, `instagram_manage_comments`,
-   `instagram_manage_messages`, `pages_manage_metadata`.
+3. Produtos no app: **Instagram**, **Webhooks** e **Facebook Login for Business**.
+4. Permissões: `instagram_basic`, `instagram_manage_comments`,
+   `instagram_manage_messages`, `pages_show_list`, `pages_manage_metadata`,
+   `business_management`.
    - Em **modo de desenvolvedor** dá pra testar na própria conta sem App Review.
-4. No painel do app, configure o webhook do Instagram:
+5. Em **Facebook Login > Configurações**, adicione a **Valid OAuth Redirect URI**:
+   `https://SEU-TUNEL/api/auth/meta/callback` (ou `http://localhost:3000/...`
+   quando aplicável). Se usar túnel, defina `META_REDIRECT_URI` com essa URL.
+6. No painel do app, configure o webhook do Instagram:
    - **Callback URL:** `https://SEU-TUNEL/api/webhooks/instagram`
    - **Verify token:** o mesmo valor de `IG_VERIFY_TOKEN`
    - Assine o campo **`comments`**.
+
+## 🔑 Conectar sua conta (OAuth)
+
+No painel, clique em **“Conectar Instagram”**. Você é levado ao login do
+Facebook, autoriza as permissões e volta pro painel — o CommentFlow descobre a
+conta IG Business ligada à sua Página e guarda o token dela. **Sem colar token
+na mão.** Dá pra conectar mais de uma conta e desconectar quando quiser.
+
+> As chamadas de comentário/DM usam o token da conta conectada mais recente.
+> `IG_ACCESS_TOKEN`/`IG_USER_ID` ficam só como fallback manual.
 
 ## 🧪 Criar um fluxo
 
@@ -131,8 +148,9 @@ docker-compose.yml
 ## 🗺️ Roadmap
 
 - [x] Editor de fluxos no painel (criar/editar/ativar/excluir)
-- [ ] OAuth da Meta no painel (conectar conta sem colar token na mão)
+- [x] OAuth da Meta no painel (conectar conta sem colar token)
 - [ ] Quick replies encadeados / nós visuais no editor
+- [ ] Criptografar tokens de acesso no banco
 - [ ] Fila (BullMQ/Redis) com rate-limit e retry
 - [ ] Multiconta e multiusuário
 - [ ] Broadcast e segmentação por tags

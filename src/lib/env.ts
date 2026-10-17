@@ -3,8 +3,14 @@
  * Read lazily so `next build` works even without credentials.
  */
 export const env = {
+  get metaAppId() {
+    return process.env.META_APP_ID ?? "";
+  },
   get metaAppSecret() {
     return process.env.META_APP_SECRET ?? "";
+  },
+  get metaRedirectUri() {
+    return process.env.META_REDIRECT_URI ?? "";
   },
   get igVerifyToken() {
     return process.env.IG_VERIFY_TOKEN ?? "";

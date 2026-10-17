@@ -1,0 +1,23 @@
+import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
+import type { IgCredentials } from "@/lib/meta";
+
+/**
+ * Credentials used to call the Graph API.
+ * Prefers the most recently connected account (via OAuth); falls back to the
+ * manual IG_ACCESS_TOKEN / IG_USER_ID from the environment.
+ */
+export async function getActiveCredentials(): Promise<IgCredentials> {
+  try {
+    const account = await prisma.account.findFirst({
+      where: { accessToken: { not: null } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (account?.accessToken && account.igUserId) {
+      return { accessToken: account.accessToken, igUserId: account.igUserId };
+    }
+  } catch {
+    // DB unavailable — fall back to env.
+  }
+  return { accessToken: env.igAccessToken, igUserId: env.igUserId };
+}

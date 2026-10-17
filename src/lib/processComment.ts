@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { replyToComment, sendPrivateReply } from "@/lib/meta";
+import { getActiveCredentials } from "@/lib/credentials";
 
 export interface IncomingComment {
   commentId: string;
@@ -40,6 +41,20 @@ export async function processComment(c: IncomingComment) {
     },
   });
 
+  const markProcessed = () =>
+    prisma.commentEvent.update({
+      where: { commentId: c.commentId },
+      data: { processed: true },
+    });
+
+  const creds = await getActiveCredentials();
+
+  // Never react to our own comments (prevents reply loops).
+  if (c.fromUserId && creds.igUserId && c.fromUserId === creds.igUserId) {
+    await markProcessed();
+    return { skipped: "own-comment" };
+  }
+
   const flows = await prisma.flow.findMany({ where: { enabled: true } });
   const text = (c.text ?? "").toLowerCase();
 
@@ -54,18 +69,27 @@ export async function processComment(c: IncomingComment) {
   });
 
   if (!matched) {
-    await prisma.commentEvent.update({
-      where: { commentId: c.commentId },
-      data: { processed: true },
-    });
+    await markProcessed();
     return { matched: false };
+  }
+
+  if (!creds.accessToken) {
+    await prisma.activityLog.create({
+      data: {
+        type: "no_credentials",
+        commentId: c.commentId,
+        flowId: matched.id,
+      },
+    });
+    await markProcessed();
+    return { matched: true, flowId: matched.id, skipped: "no-credentials" };
   }
 
   const actions: string[] = [];
 
   const publicMsg = pickRandom(matched.publicReplies);
   if (publicMsg) {
-    const r = await replyToComment(c.commentId, publicMsg);
+    const r = await replyToComment(creds, c.commentId, publicMsg);
     await prisma.activityLog.create({
       data: {
         type: r.ok ? "public_reply" : "public_reply_error",
@@ -78,7 +102,7 @@ export async function processComment(c: IncomingComment) {
   }
 
   if (matched.dmMessage) {
-    const r = await sendPrivateReply(c.commentId, matched.dmMessage);
+    const r = await sendPrivateReply(creds, c.commentId, matched.dmMessage);
     await prisma.activityLog.create({
       data: {
         type: r.ok ? "dm" : "dm_error",
@@ -90,10 +114,6 @@ export async function processComment(c: IncomingComment) {
     actions.push(r.ok ? "dm" : "dm_error");
   }
 
-  await prisma.commentEvent.update({
-    where: { commentId: c.commentId },
-    data: { processed: true },
-  });
-
+  await markProcessed();
   return { matched: true, flowId: matched.id, actions };
 }

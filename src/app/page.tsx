@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/db";
 import { FlowsManager, type FlowDTO } from "@/components/FlowsManager";
+import { ConnectionPanel, type AccountDTO } from "@/components/ConnectionPanel";
 
 export const dynamic = "force-dynamic";
 
 async function getData() {
   try {
-    const [flowsRaw, logs, events] = await Promise.all([
+    const [flowsRaw, accountsRaw, logs, events] = await Promise.all([
       prisma.flow.findMany({ orderBy: { createdAt: "desc" } }),
+      prisma.account.findMany({ orderBy: { createdAt: "desc" } }),
       prisma.activityLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
       prisma.commentEvent.count(),
     ]);
@@ -21,15 +23,22 @@ async function getData() {
       publicReplies: f.publicReplies,
       dmMessage: f.dmMessage,
     }));
+    const accounts: AccountDTO[] = accountsRaw.map((a) => ({
+      id: a.id,
+      igUserId: a.igUserId,
+      username: a.username,
+      connected: Boolean(a.accessToken),
+    }));
     const activity = logs.map((l) => ({
       id: l.id,
       type: l.type,
       createdAt: l.createdAt.toISOString(),
     }));
-    return { flows, activity, events, error: null as string | null };
+    return { flows, accounts, activity, events, error: null as string | null };
   } catch (e) {
     return {
       flows: [] as FlowDTO[],
+      accounts: [] as AccountDTO[],
       activity: [] as { id: string; type: string; createdAt: string }[],
       events: 0,
       error: (e as Error).message,
@@ -37,8 +46,23 @@ async function getData() {
   }
 }
 
-export default async function Home() {
-  const { flows, activity, events, error } = await getData();
+function metaNotice(meta: string | undefined) {
+  if (!meta) return null;
+  if (meta.startsWith("conectado:")) {
+    const n = meta.split(":")[1] ?? "1";
+    return { ok: true, text: `✅ ${n} conta(s) conectada(s) com sucesso.` };
+  }
+  return { ok: false, text: `⚠️ Não foi possível conectar — ${meta.replace(/^erro:/, "")}` };
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ meta?: string }>;
+}) {
+  const { flows, accounts, activity, events, error } = await getData();
+  const sp = await searchParams;
+  const notice = metaNotice(sp.meta);
 
   return (
     <main className="container">
@@ -46,6 +70,18 @@ export default async function Home() {
       <p className="subtitle">
         Automação de comentários do Instagram via API oficial da Meta.
       </p>
+
+      {notice && (
+        <div
+          className="card"
+          style={{
+            borderColor: notice.ok ? "var(--ok)" : "var(--err)",
+            color: notice.ok ? "var(--ok)" : "var(--err)",
+          }}
+        >
+          {notice.text}
+        </div>
+      )}
 
       {error && (
         <div className="banner">
@@ -67,6 +103,8 @@ export default async function Home() {
           <span className="muted">comentários recebidos</span>
         </div>
       </div>
+
+      <ConnectionPanel accounts={accounts} />
 
       <FlowsManager initialFlows={flows} />
 
