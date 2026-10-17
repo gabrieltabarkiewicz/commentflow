@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FlowScope {
+  ALL_POSTS
+  SPECIFIC_POST
+}
+
+enum MatchType {
+  ANY
+  KEYWORD
+}
+
+/// A connected Instagram Business account.
+model Account {
+  id          String   @id @default(cuid())
+  igUserId    String   @unique
+  username    String?
+  accessToken String?
+  createdAt   DateTime @default(now())
+  flows       Flow[]
+}
+
+/// An automation: when a comment matches, run the configured actions.
+model Flow {
+  id            String        @id @default(cuid())
+  name          String
+  enabled       Boolean       @default(true)
+  scope         FlowScope     @default(ALL_POSTS)
+  mediaId       String? // only used when scope = SPECIFIC_POST
+  matchType     MatchType     @default(ANY)
+  keywords      String[]      @default([]) // used when matchType = KEYWORD
+  publicReplies String[]      @default([]) // one is picked at random to avoid looking robotic
+  dmMessage     String? // comment -> DM (private reply); null = no DM
+  account       Account?      @relation(fields: [accountId], references: [id])
+  accountId     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  logs          ActivityLog[]
+}
+
+/// Every comment webhook we receive, stored for dedup and auditing.
+model CommentEvent {
+  id           String   @id @default(cuid())
+  commentId    String   @unique
+  mediaId      String?
+  fromUserId   String?
+  fromUsername String?
+  text         String?
+  processed    Boolean  @default(false)
+  raw          Json?
+  receivedAt   DateTime @default(now())
+}
+
+/// Audit log of actions taken (public replies, DMs, errors).
+model ActivityLog {
+  id        String   @id @default(cuid())
+  type      String
+  commentId String?
+  flow      Flow?    @relation(fields: [flowId], references: [id])
+  flowId    String?
+  detail    Json?
+  createdAt DateTime @default(now())
+}

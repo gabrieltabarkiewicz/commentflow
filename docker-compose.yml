@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: commentflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # IG_* / META_* come from .env (copy .env.example to .env first)
+    env_file:
+      - .env
+    # DATABASE_URL is forced to the db service (overrides any value in .env)
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/commentflow?schema=public"
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
