@@ -9,6 +9,9 @@ publicamente e/ou enviar uma DM (private reply) — tudo dentro das APIs oficiai
 
 ---
 
+> 📘 **Primeira vez / passo a passo pra leigo:** veja [docs/GUIA.md](docs/GUIA.md)
+> — cobre instalar o Docker, configurar o app na Meta, ligar e testar os botões.
+
 ## 🚀 Rodar (1 comando, com Docker)
 
 Pré-requisito único: **Docker Desktop** instalado. Não precisa de Node nem
