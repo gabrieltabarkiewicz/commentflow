@@ -61,9 +61,12 @@ cloudflared tunnel --url http://localhost:3000
    - **Verify token:** o mesmo valor de `IG_VERIFY_TOKEN`
    - Assine o campo **`comments`**.
 
-## 🧪 Criar um fluxo de teste
+## 🧪 Criar um fluxo
 
-Enquanto o editor visual não chega, crie fluxos pela API:
+No painel (`http://localhost:3000`) use **“+ Novo fluxo”** para criar, editar,
+ativar/desativar e excluir fluxos — sem linha de comando.
+
+Se preferir, a API continua disponível:
 
 ```bash
 curl -X POST http://localhost:3000/api/flows \
@@ -127,8 +130,9 @@ docker-compose.yml
 
 ## 🗺️ Roadmap
 
+- [x] Editor de fluxos no painel (criar/editar/ativar/excluir)
 - [ ] OAuth da Meta no painel (conectar conta sem colar token na mão)
-- [ ] Editor visual de fluxos + quick replies encadeados
+- [ ] Quick replies encadeados / nós visuais no editor
 - [ ] Fila (BullMQ/Redis) com rate-limit e retry
 - [ ] Multiconta e multiusuário
 - [ ] Broadcast e segmentação por tags

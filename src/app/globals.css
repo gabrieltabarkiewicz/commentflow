@@ -5,6 +5,7 @@
   --text: #e6e9ef;
   --muted: #9aa4b2;
   --accent: #7c5cff;
+  --accent-2: #6a4bff;
   --ok: #37d399;
   --err: #ff6b6b;
 }
@@ -56,6 +57,22 @@ h1 {
   align-items: center;
 }
 
+.stats {
+  display: flex;
+  gap: 14px;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stat strong {
+  font-size: 22px;
+}
+
 .pill {
   font-size: 12px;
   padding: 2px 8px;
@@ -94,4 +111,138 @@ h1 {
   letter-spacing: 0.06em;
   color: var(--muted);
   margin: 28px 0 12px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 28px 0 12px;
+}
+
+/* ---- buttons ---- */
+.btn {
+  background: #1b2130;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.btn:hover {
+  border-color: #38405220;
+  background: #212838;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.btn-danger {
+  color: var(--err);
+  border-color: #3a2530;
+}
+
+.btn-danger:hover {
+  background: #2a1a20;
+  border-color: var(--err);
+}
+
+/* ---- editor form ---- */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.field-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.field label,
+.checkbox {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.hint {
+  color: #6b7482;
+  font-weight: 400;
+}
+
+input,
+select,
+textarea {
+  background: #0f131c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.checkbox input {
+  width: auto;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.form-error {
+  color: var(--err);
+  font-size: 14px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
