@@ -168,6 +168,25 @@ Dockerfile
 docker-compose.yml
 ```
 
+## 📚 Documentação
+
+- [PRODUCT.md](PRODUCT.md) — problema, público, MVP, fluxos, critérios
+- [AGENTS.md](AGENTS.md) — instruções para agentes/devs (comandos, convenções)
+- [docs/architecture.md](docs/architecture.md) — componentes e fluxo de dados
+- [docs/design.md](docs/design.md) — identidade e UI
+- [docs/onboarding.md](docs/onboarding.md) — começar a desenvolver
+- [docs/setup.md](docs/setup.md) — ambiente e variáveis
+- [docs/quality.md](docs/quality.md) — como verificar e o que falta
+- [docs/GUIA.md](docs/GUIA.md) — passo a passo pra ligar e testar (leigo)
+- [docs/prompts/](docs/prompts/) — prompts de execução para agentes
+
+### Atalho (rodar via agente)
+Cole num agente com acesso a esta pasta:
+
+```text
+Configure e rode o CommentFlow neste diretório, seguindo docs/prompts/00-setup.md.
+```
+
 ## 🗺️ Roadmap
 
 - [x] Landing page (`/`) e painel interno (`/app`) com layout próprio
