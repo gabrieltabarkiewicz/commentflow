@@ -1,5 +1,19 @@
 # Prompt — configurar e rodar o CommentFlow
 
+## Atalho
+
+Cole no seu agente (Claude Code, Codex, etc.) com acesso ao diretório de destino:
+
+```text
+Leia https://raw.githubusercontent.com/gabrieltabarkiewicz/commentflow/main/docs/prompts/00-setup.md e execute o setup neste diretório.
+```
+
+> A linha acima só funciona quando o repositório é **público** (o `raw.githubusercontent.com`
+> exige autenticação em repo privado). Com o repo privado, clone-o e aponte para
+> o arquivo local `docs/prompts/00-setup.md`.
+
+## Prompt
+
 Cole num agente com acesso ao diretório do projeto (ou ao repositório clonado):
 
 ```text

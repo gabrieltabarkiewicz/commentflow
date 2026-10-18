@@ -181,11 +181,14 @@ docker-compose.yml
 - [docs/prompts/](docs/prompts/) — prompts de execução para agentes
 
 ### Atalho (rodar via agente)
-Cole num agente com acesso a esta pasta:
+Cole num agente com acesso ao diretório de destino:
 
 ```text
-Configure e rode o CommentFlow neste diretório, seguindo docs/prompts/00-setup.md.
+Leia https://raw.githubusercontent.com/gabrieltabarkiewicz/commentflow/main/docs/prompts/00-setup.md e execute o setup neste diretório.
 ```
+
+(Com o repositório privado, o link `raw` exige autenticação — clone o repo e
+aponte para `docs/prompts/00-setup.md`, ou torne o repositório público.)
 
 ## 🗺️ Roadmap
 
