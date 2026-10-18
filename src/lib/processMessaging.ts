@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActiveCredentials } from "@/lib/credentials";
 import { sendDm } from "@/lib/meta";
@@ -6,6 +7,11 @@ import { asDmFlow, buildStepMessage, decodePayload } from "@/lib/flowTypes";
 export interface IncomingMessaging {
   senderId?: string;
   payload?: string; // quick_reply or postback payload
+  mid?: string; // message id, used for idempotency
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 }
 
 /**
@@ -36,6 +42,16 @@ export async function processMessaging(e: IncomingMessaging) {
     return { skipped: "no-credentials" };
   }
 
+  // Idempotency: claim this event once. Redelivered events collide on the
+  // unique key and are skipped (no duplicate step DMs).
+  const key = `msg:${e.mid ?? `${e.senderId}:${e.payload}`}`;
+  try {
+    await prisma.processedEvent.create({ data: { key } });
+  } catch (err) {
+    if (isUniqueViolation(err)) return { skipped: "duplicate-event" };
+    throw err;
+  }
+
   const r = await sendDm(creds, { id: e.senderId }, msg.text, msg.quickReplies);
   await prisma.activityLog.create({
     data: {
@@ -44,5 +60,13 @@ export async function processMessaging(e: IncomingMessaging) {
       detail: r as unknown as object,
     },
   });
+
+  // If the send failed, release the claim so a redelivery can retry.
+  if (!r.ok) {
+    await prisma.processedEvent
+      .delete({ where: { key } })
+      .catch(() => undefined);
+  }
+
   return { ok: r.ok, step: decoded.stepId };
 }

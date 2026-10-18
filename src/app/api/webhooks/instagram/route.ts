@@ -79,7 +79,8 @@ export async function POST(req: NextRequest) {
       if (change.field !== "comments") continue;
       const v = change.value ?? {};
       if (!v.id) continue;
-      if (v.from?.id && v.from.id === env.igUserId) continue; // skip our own
+      // Self-comment loops are prevented in processComment, which compares
+      // against the connected account's id (from the DB), not env.igUserId.
       tasks.push(
         processComment({
           commentId: v.id,
@@ -102,6 +103,7 @@ export async function POST(req: NextRequest) {
         processMessaging({
           senderId: event.sender?.id,
           payload: qrPayload,
+          mid: event.message?.mid,
         }).catch((e) => console.error("processMessaging error", e)),
       );
     }

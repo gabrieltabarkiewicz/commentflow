@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { replyToComment, sendPrivateReply } from "@/lib/meta";
 import { getActiveCredentials } from "@/lib/credentials";
@@ -17,6 +18,10 @@ function pickRandom(items: string[]): string | undefined {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function isUniqueViolation(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+}
+
 /**
  * Match an incoming comment against enabled flows and run the first match's
  * actions (public reply + optional DM). Idempotent per commentId.
@@ -24,29 +29,35 @@ function pickRandom(items: string[]): string | undefined {
 export async function processComment(c: IncomingComment) {
   if (!c.commentId) return { skipped: "no-comment-id" };
 
-  const existing = await prisma.commentEvent.findUnique({
-    where: { commentId: c.commentId },
-  });
-  if (existing?.processed) return { skipped: "already-processed" };
-
-  await prisma.commentEvent.upsert({
-    where: { commentId: c.commentId },
-    update: {},
-    create: {
-      commentId: c.commentId,
-      mediaId: c.mediaId,
-      fromUserId: c.fromUserId,
-      fromUsername: c.fromUsername,
-      text: c.text,
-      raw: (c.raw ?? null) as object,
-    },
-  });
+  // Atomic claim: the unique commentId makes concurrent/retried deliveries
+  // collide here, so only one delivery proceeds (no double replies).
+  try {
+    await prisma.commentEvent.create({
+      data: {
+        commentId: c.commentId,
+        mediaId: c.mediaId,
+        fromUserId: c.fromUserId,
+        fromUsername: c.fromUsername,
+        text: c.text,
+        raw: (c.raw ?? null) as object,
+      },
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { skipped: "already-claimed" };
+    throw e;
+  }
 
   const markProcessed = () =>
     prisma.commentEvent.update({
       where: { commentId: c.commentId },
       data: { processed: true },
     });
+  // Release the claim so a redelivery (within Meta's retry window) can retry
+  // when nothing was delivered.
+  const releaseClaim = () =>
+    prisma.commentEvent
+      .delete({ where: { commentId: c.commentId } })
+      .catch(() => undefined);
 
   const creds = await getActiveCredentials();
 
@@ -134,6 +145,16 @@ export async function processComment(c: IncomingComment) {
       },
     });
     actions.push(r.ok ? "dm" : "dm_error");
+  }
+
+  const hadSuccess = actions.some((a) => !a.endsWith("_error"));
+  const hadFailure = actions.some((a) => a.endsWith("_error"));
+
+  // If every attempted action failed, nothing was delivered — release the
+  // claim so a redelivery can retry cleanly (no risk of double-sending).
+  if (hadFailure && !hadSuccess) {
+    await releaseClaim();
+    return { matched: true, flowId: matched.id, retry: true, actions };
   }
 
   await markProcessed();

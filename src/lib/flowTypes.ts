@@ -28,6 +28,8 @@ export interface OutboundMessage {
 const PREFIX = "qr";
 // Instagram quick-reply title limit is 20 characters.
 const TITLE_MAX = 20;
+// Instagram allows at most 13 quick replies per message.
+const MAX_QUICK_REPLIES = 13;
 
 export function encodePayload(flowId: string, stepId: string): string {
   return `${PREFIX}::${flowId}::${stepId}`;
@@ -58,11 +60,16 @@ export function buildStepMessage(
 ): OutboundMessage | null {
   const step = flow.steps?.[stepId];
   if (!step) return null;
+  // Instagram requires non-empty message text; skip an empty step rather than
+  // sending a message the API would reject.
+  const text = step.text?.trim() ? step.text : "";
+  if (!text) return null;
   const quickReplies = (step.quickReplies ?? [])
     .filter((q) => q.title?.trim())
+    .slice(0, MAX_QUICK_REPLIES)
     .map((q) => ({
       title: q.title.trim().slice(0, TITLE_MAX),
       payload: encodePayload(flowId, q.next ?? ""),
     }));
-  return { text: step.text, quickReplies };
+  return { text, quickReplies };
 }

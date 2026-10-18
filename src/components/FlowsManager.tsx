@@ -133,7 +133,20 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
     );
   }
   function removeStep(i: number) {
-    setDraft((d) => (d ? { ...d, steps: d.steps.filter((_, idx) => idx !== i) } : d));
+    setDraft((d) => {
+      if (!d) return d;
+      const removedId = d.steps[i]?.id;
+      const steps = d.steps
+        .filter((_, idx) => idx !== i)
+        .map((s) => ({
+          ...s,
+          // clear buttons that pointed to the removed step
+          quickReplies: s.quickReplies.map((q) =>
+            q.next === removedId ? { ...q, next: "" } : q,
+          ),
+        }));
+      return { ...d, steps };
+    });
   }
   function setStepText(i: number, text: string) {
     setDraft((d) =>
@@ -192,9 +205,15 @@ export function FlowsManager({ initialFlows }: { initialFlows: FlowDTO[] }) {
       setError("Dê um nome ao fluxo.");
       return;
     }
-    if (draft.dmMode === "flow" && draft.steps.length === 0) {
-      setError("Adicione ao menos um passo ao fluxo.");
-      return;
+    if (draft.dmMode === "flow") {
+      if (draft.steps.length === 0) {
+        setError("Adicione ao menos um passo ao fluxo.");
+        return;
+      }
+      if (draft.steps.some((s) => !s.text.trim())) {
+        setError("Cada passo precisa de um texto.");
+        return;
+      }
     }
     setSaving(true);
     setError(null);

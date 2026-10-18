@@ -59,6 +59,13 @@ model CommentEvent {
   receivedAt   DateTime @default(now())
 }
 
+/// Idempotency ledger for one-shot webhook events (e.g. messaging mids).
+model ProcessedEvent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  createdAt DateTime @default(now())
+}
+
 /// Audit log of actions taken (public replies, DMs, errors).
 model ActivityLog {
   id        String   @id @default(cuid())
