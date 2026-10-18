@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
-RUN npm install
+RUN npm ci
 
 # ---- build: compile Next.js
 FROM base AS build
