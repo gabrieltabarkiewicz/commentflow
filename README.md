@@ -42,6 +42,14 @@ cloudflared tunnel --url http://localhost:3000
 # ou: ngrok http 3000
 ```
 
+## ☁️ Deploy em 1 clique (sem Docker, 24/7)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gabrieltabarkiewicz/commentflow)
+
+Sobe o app + Postgres gerenciado pela Render (lê o `render.yaml`, aplica
+migrations e serve com URL pública fixa). Passo a passo e custos em
+[docs/DEPLOY.md](docs/DEPLOY.md).
+
 ## 🧩 O que preencher no `.env`
 
 | Variável            | O que é                                                                     |

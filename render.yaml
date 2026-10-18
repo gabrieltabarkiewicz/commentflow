@@ -1,0 +1,34 @@
+# Render Blueprint — deploy em 1 clique (app + Postgres gerenciado).
+# https://render.com/docs/blueprint-spec
+# O serviço web usa o Dockerfile; o CMD aplica as migrations e sobe o Next.
+services:
+  - type: web
+    name: commentflow
+    runtime: docker
+    plan: starter
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: commentflow-db
+          property: connectionString
+      - key: GRAPH_API_VERSION
+        value: v21.0
+      # Gerados automaticamente pela Render (copie o IG_VERIFY_TOKEN no painel
+      # para usar no webhook da Meta):
+      - key: IG_VERIFY_TOKEN
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      # Preencha no painel da Render após o deploy:
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      # Use a URL pública do serviço + /api/auth/meta/callback:
+      - key: META_REDIRECT_URI
+        sync: false
+
+databases:
+  - name: commentflow-db
+    plan: starter
